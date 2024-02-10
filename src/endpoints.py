@@ -12,7 +12,6 @@ home = Blueprint('/', __name__)
 # https://webargs.readthedocs.io/en/latest/framework_support.html
 # https://flask.palletsprojects.com/en/2.0.x/quickstart/#variable-rules
 
-
 @home.route('/')
 def index():
     return {'data': 'OK'}
@@ -30,6 +29,7 @@ def dummy_model(id_):
 @home.route('/dummy_model', methods=['POST'])
 @use_args({'value': fields.String()})
 def dummy_model_create(args):
+    print(args)
     new_record = DummyModel(value=args.get('value'))
     db.session.add(new_record)
     db.session.commit()
