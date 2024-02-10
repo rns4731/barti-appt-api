@@ -74,7 +74,8 @@ def appointments_create(args):
             datetime.strptime(t, format)
         except ValueError:
             return jsonify({'error': f"Invalid date format for {t}. Please use {format}"}), HTTPStatus.BAD_REQUEST
-    
+    start_time = datetime.strptime(start_time, format)
+    end_time = datetime.strptime(end_time, format)
     doctor = Doctor.query.filter_by(id=args.get('doctor_id')).first()
     if not doctor.has_availability(start_time, end_time):
         return jsonify({'error': f"Doctor {doctor.name} is not available at the given time window"}), HTTPStatus.BAD_REQUEST
@@ -83,13 +84,14 @@ def appointments_create(args):
     new_record = Appointment(doctor_id=args.get('doctor_id'), duration=args.get('duration'), start_time=start_time, end_time=end_time)
     db.session.add(new_record)
     db.session.commit()
+    return new_record.json()
 
 
 @home.route("/appointments/<id_>/first_available", methods=['POST'])
 @use_args({
     'start_time': fields.String(required=True),
     "duration": fields.Integer(required=True)
-}, location='query')
+}, location='json')
 def first_available_appointment(args, id_):
     format = "%Y-%m-%d %H:%M"
     start_time = args.get('start_time')
@@ -99,12 +101,13 @@ def first_available_appointment(args, id_):
             datetime.strptime(t, format)
         except ValueError:
             return jsonify({'error': f"Invalid date format for {t}. Please use {format}"}), HTTPStatus.BAD_REQUEST
+    start_time = datetime.strptime(start_time, format)     
     doctor = Doctor.query.filter_by(id=id_).first()
     appointment = doctor.first_appointment(start_time, duration)
     if appointment is not None:
         return appointment.json()
     else:
-        return jsonify(None), HTTPStatus.NOT_FOUND
+        return jsonify("Appointment not found"), HTTPStatus.NOT_FOUND
 
 
 @home.route('/appointments/doctor/<id_>', methods=['GET'])
@@ -121,5 +124,7 @@ def appointments_by_doctor_window(args, id_):
             datetime.strptime(t, format)
         except ValueError:
             return jsonify({'error': f"Invalid date format for {t}. Please use {format}"}), HTTPStatus.BAD_REQUEST
+    start_time = datetime.strptime(start_time, format)
+    end_time = datetime.strptime(end_time, format)        
     records = Appointment.query.filter_by(doctor_id=id_).filter(Appointment.start_time >= start_time).filter(Appointment.end_time <= end_time).all()
     return jsonify([record.json().json for record in records])

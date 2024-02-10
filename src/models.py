@@ -17,16 +17,25 @@ class Doctor(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     name = db.Column(db.String, nullable=False)
     email = db.Column(db.String, nullable=False)
-    working_hours = db.relationship('WorkingHours', backref='doctor', lazy=True)
-    appointments = db.relationship('Appointment', backref='doctor', lazy=True)
+    working_hours = db.relationship('WorkingHours', backref='doctor', lazy="dynamic")
+    appointments = db.relationship('Appointment', backref='doctor', lazy="dynamic")
 
     def has_availability(self, start_time, end_time) -> bool:
         """
         Checks if the doctor has availability for the given time window
         """
         for working_hour in self.working_hours:
-            if working_hour.day_of_week == start_time.weekday() and working_hour.start_time >= start_time.time() and working_hour.end_time <= end_time.time():
+            if working_hour.day_of_week == start_time.weekday() and working_hour.start_time <= start_time.time() and working_hour.end_time >= end_time.time():
                 return True
+        return False
+
+    def is_appointment_overlap(self, appointment, target_start_time, target_end_time) -> bool:
+        if (
+            (target_start_time >= appointment.start_time and target_end_time <= appointment.end_time) # In between
+            or (target_start_time <= appointment.start_time and target_end_time >= appointment.start_time) # Overlapping start
+            or (target_start_time <= appointment.end_time and target_end_time >= appointment.end_time) # Overlapping end
+        ):
+            return True
         return False
     
     def has_appointment_overlap(self, start_time, end_time) -> bool:
@@ -34,7 +43,7 @@ class Doctor(db.Model):
         Checks if the doctor has an appointment at the given time window
         """
         for appointment in self.appointments:
-            if appointment.start_time >= start_time or appointment.end_time <= end_time:
+            if self.is_appointment_overlap(appointment, start_time, end_time):
                 return True
         return False
     
@@ -52,27 +61,26 @@ class Doctor(db.Model):
                 # We have found a working hour that fits the time window
                 # Now we need to check if there are any appointments that overlap with this time window
                 # If same day, then use current start and end times
-                if working_hour.start_time.weekday() == current_day:
+                if working_hour.day_of_week == current_day:
                     target_start_time = start_time
                     target_end_time = end_time
                 else:
-                    # If not same day, then use the start time of the working hour
-                    target_start_time = working_hour.start_time
+                    # If not same day, then use the start time of the working hour that day of week
+                    days_difference = working_hour.day_of_week - start_time.weekday()
+                    start_time = start_time + timedelta(days=days_difference)
+                    target_start_time = start_time.replace(hour=working_hour.start_time.hour, minute=working_hour.start_time.minute)
                     target_end_time = target_start_time + timedelta(minutes=duration)
 
                 # Get appointments for the same day
-                appointments = self.appointments.filter(Appointment.start_time.weekday() == target_start_time.weekday()).order_by(Appointment.start_time.asc())
+                appointments = list(filter(lambda x: x.start_time.weekday() == target_start_time.weekday(), self.appointments))
+                appointments = sorted(appointments, key=lambda x: x.start_time)
                 for appointment in appointments:
-                    if (
-                        (target_start_time >= appointment.start_time and target_end_time <= appointment.end_time) # In between
-                        or (target_start_time <= appointment.start_time and target_end_time >= appointment.start_time) # Overlapping start
-                        or (target_start_time <= appointment.end_time and target_end_time >= appointment.end_time) # Overlapping end
-                    ):
+                    if self.is_appointment_overlap(appointment, target_start_time, target_end_time):
                         # There is an appointment that overlaps with the target time window, move time window
                         target_start_time = appointment.end_time
                         target_end_time = target_start_time + timedelta(minutes=duration)
                 
-                if target_end_time <= working_hour.end_time:
+                if target_end_time.time() <= working_hour.end_time:
                     # Check within working hours
                     appointment = Appointment(doctor_id=self.id, duration=duration, start_time=target_start_time, end_time=target_end_time)
                     return appointment
