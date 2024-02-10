@@ -40,10 +40,12 @@ def seed_data():
     appointment_2 = Appointment(doctor_id=doctor1.id, duration=30, start_time=datetime.strptime("2022-01-01 09:30", "%Y-%m-%d %H:%M"), end_time=datetime.strptime("2022-01-01 10:00", "%Y-%m-%d %H:%M"))
     appointment_3 = Appointment(doctor_id=doctor2.id, duration=30, start_time=datetime.strptime("2022-01-01 10:00", "%Y-%m-%d %H:%M"), end_time=datetime.strptime("2022-01-01 10:30", "%Y-%m-%d %H:%M"))
     appointment_4 = Appointment(doctor_id=doctor2.id, duration=30, start_time=datetime.strptime("2022-01-01 10:30", "%Y-%m-%d %H:%M"), end_time=datetime.strptime("2022-01-01 11:00", "%Y-%m-%d %H:%M"))
+    appointment_5 = Appointment(doctor_id=doctor2.id, duration=60, start_time=datetime.strptime("2022-01-01 11:00", "%Y-%m-%d %H:%M"), end_time=datetime.strptime("2022-01-01 12:00", "%Y-%m-%d %H:%M"))
     db.session.add(appointment_1)
     db.session.add(appointment_2)
     db.session.add(appointment_3)
     db.session.add(appointment_4)
+    db.session.add(appointment_5)
 
     db.session.commit()
 
